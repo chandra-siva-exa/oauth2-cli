@@ -34,11 +34,13 @@ func randString() string {
 func main() {
 	var (
 		port         = flag.Int("port", 8080, "Callback port")
+		callback     = flag.String("callback", "http://localhost", "API Callback URL")
 		path         = flag.String("path", "/oauth/callback", "Callback path")
 		clientID     = flag.String("id", "", "Client ID")
 		clientSecret = flag.String("secret", "", "Client secret")
 		authURL      = flag.String("auth", "https://localhost/oauth/authorize", "Authorization URL")
 		tokenURL     = flag.String("token", "https://localhost/oauth/token", "Token URL")
+		audience     = flag.String("audience", "https://localhost/api/v1", "API Audience")
 		scopes       Scopes
 	)
 	flag.Var(&scopes, "scope", "oAuth scopes to authorize (can be specified multiple times")
@@ -48,7 +50,7 @@ func main() {
 		ClientID:     *clientID,
 		ClientSecret: *clientSecret,
 		Scopes:       scopes,
-		RedirectURL:  fmt.Sprintf("http://127.0.0.1:%d%s", *port, *path),
+		RedirectURL:  fmt.Sprintf("%s:%d%s", *callback, *port, *path),
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  *authURL,
 			TokenURL: *tokenURL,
@@ -57,7 +59,7 @@ func main() {
 
 	state := randString()
 	url := config.AuthCodeURL(state, oauth2.AccessTypeOffline)
-	fmt.Printf("Visit this URL in your browser:\n\n%s\n\n", url)
+	fmt.Printf("Visit this URL in your browser:\n\n%s&audience=%s\n\n", url, *audience)
 
 	ctx := context.Background()
 	var wg sync.WaitGroup
@@ -66,10 +68,12 @@ func main() {
 	http.HandleFunc(*path, func(w http.ResponseWriter, r *http.Request) {
 		defer wg.Done()
 
-		if s := r.URL.Query().Get("state"); s != state {
-			http.Error(w, fmt.Sprintf("Invalid state: %s", s), http.StatusUnauthorized)
-			return
-		}
+        /*
+        if s := r.URL.Query().Get("state"); s != state {
+           http.Error(w, fmt.Sprintf("Invalid state: %s", s), http.StatusUnauthorized)
+           return
+        }
+        */
 
 		code := r.URL.Query().Get("code")
 		token, err := config.Exchange(ctx, code)
